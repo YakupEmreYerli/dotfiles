@@ -1,5 +1,7 @@
 # dotfiles
 
+![Desktop](previews/desktop-dark.png)
+
 My Fedora KDE Plasma 6 setup: one light/dark theme across the whole desktop, Konsole, panel, shortcuts and shell.
 Browse the configs one by one at [yakupemreyerli.com/dotfiles](https://yakupemreyerli.com/dotfiles/).
 
