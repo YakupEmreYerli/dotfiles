@@ -19,7 +19,6 @@ Kişisel Fedora KDE ayarlarım. Configleri tek tek görmek ve indirmek için:
 
 ## My KDE projects
 
-- [yakupemre-sddm](https://github.com/YakupEmreYerli/yakupemre-sddm): login screen theme
 - [tray-grid](https://github.com/YakupEmreYerli/tray-grid): Windows-style hidden tray icon grid
 - [ente-auth-plasmoid](https://github.com/YakupEmreYerli/ente-auth-plasmoid): Ente Auth 2FA codes in the panel
 - [tuya-light](https://github.com/YakupEmreYerli/tuya-light): Tuya Wi-Fi bulbs from the panel
