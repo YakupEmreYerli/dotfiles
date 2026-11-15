@@ -1,45 +1,92 @@
-# Yakup's disk-password screen (design A): navy ASCII header and DISK ENCRYPTED baked into bg.png,
-# a steel password box with bullets and a steady caret (no blinking: every redraw here is CPU-only, before i915). Layout is drawn for 2880x1800 and scaled.
+# Yakup's disk-password screen (Galeri A1): "Yakup." in italic serif, DISK ENCRYPTED and LINUX baked into bg.png;
+# clock, date and battery arrive from the initrd helper as "YK HHMM W DD MM BBB" status updates; bullets on a hairline.
+# Laid out for 2880x1800 and scaled. Redraws only on change: everything here is CPU-only (before i915).
 W = Window.GetWidth();
 H = Window.GetHeight();
 k = W / 2880;
 
+fun img(name) {
+  i = Image(name);
+  if (k == 1) return i;
+  return i.Scale(i.GetWidth() * k, i.GetHeight() * k);
+}
+
 bg_s = Sprite(Image("bg.png").Scale(W, H));
 bg_s.SetPosition(0, 0, -100);
 
-BOX_X = 1008 * k; BOX_Y = 1090 * k; BOX_H = 113 * k; MAXDOTS = 24;
-box_img = Image("box.png");
-box_s = Sprite(box_img.Scale(box_img.GetWidth() * k, box_img.GetHeight() * k));
-box_s.SetPosition(BOX_X, BOX_Y, 10);
-box_s.SetOpacity(0);
+C_CELL = 36 * k; K_CELL = 23 * k;
+DIG = "0123456789";
+for (d = 0; d < 10; d++) { ch = DIG.CharAt(d); cg[ch] = img("c_" + ch + ".png"); kg[ch] = img("k_" + ch + ".png"); }
+cg[":"] = img("c_colon.png");
+kg["%"] = img("k_pct.png");
 
-dot_img = Image("dot.png").Scale(16 * k, 16 * k);
+# clock: 5 cells centred on x=1440
+for (i = 0; i < 5; i++) { clk[i] = Sprite(); clk[i].SetZ(5); clk[i].SetOpacity(0); }
+CLK_X = 1440 * k - (5 * C_CELL - 12 * k) / 2; CLK_Y = 560 * k;
+for (i = 0; i < 5; i++) clk[i].SetPosition(CLK_X + i * C_CELL, CLK_Y, 5);
+
+# date: weekday word, day (1-2 cells), month word at the top left
+wd_s = Sprite(); dd0 = Sprite(); dd1 = Sprite(); mo_s = Sprite();
+wd_s.SetOpacity(0); dd0.SetOpacity(0); dd1.SetOpacity(0); mo_s.SetOpacity(0);
+# battery: up to 4 cells ("%100") right-aligned at x=2759
+for (i = 0; i < 4; i++) { bat[i] = Sprite(); bat[i].SetOpacity(0); }
+
+global.last = "";
+fun status_cb(s) {
+  if (s.SubString(0, 3) != "YK ") return;
+  if (s == global.last) return;
+  global.last = s;
+  hh = s.SubString(3, 5); mm = s.SubString(5, 7);
+  w = s.SubString(8, 9); da = s.SubString(10, 12); mo = s.SubString(13, 15); b = s.SubString(16, 19);
+
+  t[0] = hh.CharAt(0); t[1] = hh.CharAt(1); t[2] = ":"; t[3] = mm.CharAt(0); t[4] = mm.CharAt(1);
+  for (i = 0; i < 5; i++) { clk[i].SetImage(cg[t[i]]); clk[i].SetOpacity(1); }
+
+  x = 121 * k; y = 104 * k;
+  wi = img("wd_" + w + ".png");
+  wd_s.SetImage(wi); wd_s.SetPosition(x, y, 5); wd_s.SetOpacity(1);
+  x = x + wi.GetWidth() + K_CELL;
+  if (da.CharAt(0) == "0") { dd1.SetOpacity(0); dd0.SetImage(kg[da.CharAt(1)]); dd0.SetPosition(x, y, 5); x = x + K_CELL; }
+  else {
+    dd0.SetImage(kg[da.CharAt(0)]); dd0.SetPosition(x, y, 5);
+    dd1.SetImage(kg[da.CharAt(1)]); dd1.SetPosition(x + K_CELL, y, 5); dd1.SetOpacity(1); x = x + 2 * K_CELL;
+  }
+  dd0.SetOpacity(1);
+  x = x + K_CELL;
+  mo_s.SetImage(img("mo_" + mo + ".png")); mo_s.SetPosition(x, y, 5); mo_s.SetOpacity(1);
+
+  # battery "BBB" is zero-padded; drop leading zeros
+  n = 0; bc[n] = "%"; n = n + 1;
+  if (b.CharAt(0) != "0") { bc[n] = b.CharAt(0); n = n + 1; }
+  if (b.CharAt(0) != "0" || b.CharAt(1) != "0") { bc[n] = b.CharAt(1); n = n + 1; }
+  bc[n] = b.CharAt(2); n = n + 1;
+  bx = 2759 * k - n * K_CELL + 6 * k;
+  for (i = 0; i < 4; i++) {
+    if (i < n) { bat[i].SetImage(kg[bc[i]]); bat[i].SetPosition(bx + i * K_CELL, y, 5); bat[i].SetOpacity(1); }
+    else bat[i].SetOpacity(0);
+  }
+}
+Plymouth.SetUpdateStatusFunction(status_cb);
+
+# password bullets on the hairline
+DOT_X = 1066 * k; DOT_Y = 1193 * k - 7 * k; STEP = 30 * k; MAXDOTS = 18;
+dot_img = img("dot.png");
 for (i = 0; i < MAXDOTS; i++) {
   dots[i] = Sprite(dot_img);
-  dots[i].SetPosition(BOX_X + (46 + i * 29) * k, BOX_Y + BOX_H / 2 - 8 * k, 12);
+  dots[i].SetPosition(DOT_X + i * STEP, DOT_Y, 12);
   dots[i].SetOpacity(0);
 }
-caret_s = Sprite(Image("caret.png").Scale(26 * k, 60 * k));
-caret_s.SetOpacity(0);
-asking = 0;
 
 fun password_cb(prompt, bullets) {
-  asking = 1;
-  box_s.SetOpacity(1);
   n = bullets;
   if (n > MAXDOTS) n = MAXDOTS;
   for (i = 0; i < MAXDOTS; i++) {
     if (i < n) dots[i].SetOpacity(1); else dots[i].SetOpacity(0);
   }
-  caret_s.SetPosition(BOX_X + (46 + n * 29 + 6) * k, BOX_Y + BOX_H / 2 - 30 * k, 12);
-  caret_s.SetOpacity(1);
 }
 Plymouth.SetDisplayPasswordFunction(password_cb);
 
 fun normal_cb() {
-  asking = 0;
-  box_s.SetOpacity(0);
-  caret_s.SetOpacity(0);
   for (i = 0; i < MAXDOTS; i++) dots[i].SetOpacity(0);
 }
 Plymouth.SetDisplayNormalFunction(normal_cb);

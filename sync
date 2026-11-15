@@ -5,18 +5,25 @@
 set -euo pipefail
 cd "$(dirname "$(readlink -f "$0")")"
 
-while IFS=$'\t' read -r dest src drop; do
+# Lines are copied as they are, except: `drop` (extended regex) removes matching lines, `edit` (sed script) rewrites
+# private paths first, so a line that also does something else stays and keeps the file valid.
+# A local, untracked private.sed (if present) runs on every filtered file too, for names that must not be published.
+filter() {
+  sed -E "${edit:-}" "$1" | { [[ -f private.sed ]] && sed -E -f private.sed || cat; } |
+    { [[ -n ${drop:-} ]] && grep -Ev "$drop" || cat; }
+}
+while IFS=$'\t' read -r dest src drop edit; do
   [[ -z $dest || $dest == \#* ]] && continue
   [[ $src == /* ]] || src="$HOME/$src"
   [[ -e $src ]] || { echo "skip (missing): $src" >&2; continue; }
   mkdir -p "$(dirname "$dest")"
-  if [[ -d $src && -n ${drop:-} ]]; then
+  if [[ -d $src && -n ${drop:-}${edit:-} ]]; then
     rm -rf "$dest"; mkdir -p "$dest"
-    for f in "$src"/*; do grep -Ev "$drop" "$f" > "$dest/${f##*/}" || true; done
+    for f in "$src"/*; do filter "$f" > "$dest/${f##*/}" || true; done
   elif [[ -d $src ]]; then
     rm -rf "$dest"; cp -rL "$src" "$dest"
-  elif [[ -n ${drop:-} ]]; then
-    grep -Ev "$drop" "$src" > "$dest" || true
+  elif [[ -n ${drop:-}${edit:-} ]]; then
+    filter "$src" > "$dest" || true
   else
     cp -L "$src" "$dest"
   fi

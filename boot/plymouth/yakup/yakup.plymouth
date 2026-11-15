@@ -1,6 +1,6 @@
 [Plymouth Theme]
 Name=yakup
-Description=Navy ASCII YAKUP header, DISK ENCRYPTED, steel password box
+Description=Galeri A1: italic "Yakup.", live clock, date and battery, DISK ENCRYPTED, LINUX
 ModuleName=script
 
 [script]

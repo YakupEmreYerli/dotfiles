@@ -5,8 +5,8 @@ RightButton;NoModifier=org.kde.contextmenu
 RightButton;NoModifier=org.kde.contextmenu
 
 [Containments][1]
-ItemGeometries-1800x1125=Applet-37:800,128,176,160,0;
-ItemGeometriesHorizontal=Applet-37:800,128,176,160,0;
+ItemGeometries-1800x1125=
+ItemGeometriesHorizontal=
 activityId=cfc729d8-0988-4c97-9be2-400a6f5fe0c5
 formfactor=0
 immutability=1
@@ -15,16 +15,11 @@ location=0
 plugin=org.kde.plasma.folder
 wallpaperplugin=org.kde.image
 
-[Containments][1][Applets][37]
-immutability=1
-plugin=org.yakup.gizlilik
-
 [Containments][1][General]
 lastResolution=1800x1125
 sortMode=-1
 
 [Containments][1][Wallpaper][org.kde.image][General]
-Image=file://$HOME/.local/share/wallpapers/YakupTema
 
 [Containments][2]
 activityId=
@@ -79,7 +74,7 @@ immutability=1
 plugin=org.kde.portmanteau
 
 [Containments][2][Applets][34][Configuration]
-popupHeight=430
+popupHeight=376
 popupWidth=360
 
 [Containments][2][Applets][4]
@@ -91,7 +86,7 @@ immutability=1
 plugin=org.kde.plasma.icontasks
 
 [Containments][2][Applets][5][Configuration][General]
-launchers=applications:brave-origin.desktop,preferred://filemanager,applications:github-desktop.desktop,applications:org.telegram.desktop.desktop,applications:chatgpt.desktop,applications:com.anthropic.Claude.desktop,applications:whatsdeck.desktop,applications:md.obsidian.Obsidian.desktop
+launchers=applications:brave-origin.desktop,applications:chatgpt.desktop,preferred://filemanager,applications:github-desktop.desktop,applications:org.telegram.desktop.desktop,applications:com.anthropic.Claude.desktop,applications:whatsdeck.desktop,applications:md.obsidian.Obsidian.desktop
 
 [Containments][2][Applets][6]
 immutability=1
@@ -193,6 +188,10 @@ plugin=com.github.yakupemreyerli.tuyalight
 popupHeight=395
 popupWidth=306
 
+[Containments][2][Applets][7][Applets][37]
+immutability=1
+plugin=com.github.yakupemreyerli.temadugmesi
+
 [Containments][2][Applets][7][Applets][8]
 immutability=1
 plugin=org.kde.kdeconnect
@@ -203,9 +202,9 @@ plugin=org.kde.plasma.vault
 
 [Containments][2][Applets][7][General]
 disabledStatusNotifiers=Xwayland Video Köprüsü
-extraItems=org.kde.kdeconnect,org.kde.plasma.vault,org.kde.kscreen,org.kde.plasma.battery,org.kde.plasma.bluetooth,org.kde.plasma.brightness,org.kde.plasma.cameraindicator,org.kde.plasma.clipboard,org.kde.plasma.devicenotifier,org.kde.plasma.dwellclicker,org.kde.plasma.keyboardindicator,org.kde.plasma.keyboardlayout,org.kde.plasma.manage-inputmethod,org.kde.plasma.networkmanagement,org.kde.plasma.notifications,org.kde.plasma.printmanager,org.kde.plasma.volume,org.kde.plasma.weather,martchus.syncthingplasmoid-qt6,com.github.yakupemreyerli.tuyalight
+extraItems=org.kde.kdeconnect,org.kde.plasma.vault,org.kde.kscreen,org.kde.plasma.battery,org.kde.plasma.bluetooth,org.kde.plasma.brightness,org.kde.plasma.cameraindicator,org.kde.plasma.clipboard,org.kde.plasma.devicenotifier,org.kde.plasma.dwellclicker,org.kde.plasma.keyboardindicator,org.kde.plasma.keyboardlayout,org.kde.plasma.manage-inputmethod,org.kde.plasma.networkmanagement,org.kde.plasma.notifications,org.kde.plasma.printmanager,org.kde.plasma.volume,org.kde.plasma.weather,martchus.syncthingplasmoid-qt6,com.github.yakupemreyerli.tuyalight,com.github.yakupemreyerli.temadugmesi
 hiddenItems=org.kde.plasma.bluetooth,org.kde.plasma.clipboard,martchus.syncthingplasmoid-qt6,com.github.yakupemreyerli.tuyalight
-knownItems=org.kde.kdeconnect,org.kde.plasma.vault,org.kde.kscreen,org.kde.plasma.battery,org.kde.plasma.bluetooth,org.kde.plasma.brightness,org.kde.plasma.cameraindicator,org.kde.plasma.clipboard,org.kde.plasma.devicenotifier,org.kde.plasma.dwellclicker,org.kde.plasma.keyboardindicator,org.kde.plasma.keyboardlayout,org.kde.plasma.manage-inputmethod,org.kde.plasma.mediacontroller,org.kde.plasma.networkmanagement,org.kde.plasma.notifications,org.kde.plasma.printmanager,org.kde.plasma.volume,org.kde.plasma.weather,martchus.syncthingplasmoid-qt6,com.github.yakupemreyerli.tuyalight
+knownItems=org.kde.kdeconnect,org.kde.plasma.vault,org.kde.kscreen,org.kde.plasma.battery,org.kde.plasma.bluetooth,org.kde.plasma.brightness,org.kde.plasma.cameraindicator,org.kde.plasma.clipboard,org.kde.plasma.devicenotifier,org.kde.plasma.dwellclicker,org.kde.plasma.keyboardindicator,org.kde.plasma.keyboardlayout,org.kde.plasma.manage-inputmethod,org.kde.plasma.mediacontroller,org.kde.plasma.networkmanagement,org.kde.plasma.notifications,org.kde.plasma.printmanager,org.kde.plasma.volume,org.kde.plasma.weather,martchus.syncthingplasmoid-qt6,com.github.yakupemreyerli.tuyalight,com.github.yakupemreyerli.temadugmesi
 
 [Containments][2][General]
 AppletOrder=3;4;5;6;31;33;34;7;23

@@ -6,6 +6,18 @@ Browse the configs one by one at [yakupemreyerli.com/dotfiles](https://yakupemre
 Kişisel Fedora KDE ayarlarım. Configleri tek tek görmek ve indirmek için:
 [yakupemreyerli.com/tr/dotfiles](https://yakupemreyerli.com/tr/dotfiles/).
 
+## What it looks like
+
+The desktop, the lock screen and the boot screen, in both themes. These are screenshots of my own machine, not stock images.
+
+| Light | Dark |
+| --- | --- |
+| ![Desktop, light](previews/desktop-light.png) | ![Desktop, dark](previews/desktop-dark.png) |
+| ![Lock screen, light](previews/lock-light.png) | ![Lock screen, dark](previews/lock-dark.png) |
+| ![Konsole and Dolphin, light](previews/windows-light.png) | ![Konsole and Dolphin, dark](previews/windows-dark.png) |
+
+![Boot and disk password screen](previews/boot.png)
+
 ## What's inside
 
 | Folder | What it is |

@@ -1,10 +1,11 @@
-# Yakup's shell shortcuts, same as the PC (~/.bashrc there): project cd, v/p aliases, completion.
+# Shell shortcuts: a short cd that finds a project folder by a loose name, and completion.
+# Set DOTFILES_PROJECTS to your projects folder and DOTFILES_VAULT to your notes folder to use the
+# short names "proje" and "vault". Without them, cd still finds a project under ~/projects.
 [[ $- == *i* ]] || return  # interactive shells only (ssh commands stay quiet)
-_P="$DOTFILES_PROJECTS"
-CDPATH=".:$_P:$_P:$_P:$_P:$_P:$DOTFILES_PROJECTS:$HOME"
-alias v='cd $DOTFILES_VAULT'
-alias p='cd $DOTFILES_PROJECTS'
-# Kısa adlar: cd vault / cd proje (aynı adda yerel klasör varsa o öncelikli).
+_P="${DOTFILES_PROJECTS:-$HOME/projects}"
+CDPATH=".:$_P:$HOME"
+[ -n "${DOTFILES_PROJECTS:-}" ] && alias p='cd "$DOTFILES_PROJECTS"'
+# Short names: cd proje (a local folder of the same name wins).
 # Tam ad tutmazsa proje klasörleri gevşek aranır: büyük-küçük harf, Türkçe harf, nokta ve tire fark etmez,
 _project_key() {
   local LC_ALL=C.UTF-8
@@ -15,11 +16,10 @@ _project_key() {
   REPLY=${REPLY,,}; REPLY=${REPLY//[^a-z0-9]/}
 }
 _cd_project() {
-  local want root=$DOTFILES_PROJECTS d key bare REPLY
+  local want root="${DOTFILES_PROJECTS:-$HOME/projects}" d key bare REPLY
   local -a exact prefix contains
   _project_key "$1"; want=$REPLY; [ -n "$want" ] || return 1
-  for d in "$root"/*/ "$root"//*/ $DOTFILES_PROJECTS/*/; do
-    case "${d%/}" in "$root"|"$root"|"$root"|"$root") continue ;; esac
+  for d in "$root"/*/; do
     [ -d "$d" ] || continue
     d=${d%/}; _project_key "${d##*/}"; key=$REPLY; bare=${key%comtr}; bare=${bare%com}
     if [ "$key" = "$want" ] || [ "$bare" = "$want" ]; then exact+=("$d")
@@ -40,8 +40,8 @@ _cd_project() {
 cd() {
   if [ $# -eq 1 ] && [ ! -d "$1" ]; then
     case "$1" in
-      vault) builtin cd $DOTFILES_VAULT; return ;;
-      proje|projeler) builtin cd $DOTFILES_PROJECTS; return ;;
+      proje|projeler) [ -n "${DOTFILES_PROJECTS:-}" ] && builtin cd "$DOTFILES_PROJECTS" && return ;;
+      vault) [ -n "${DOTFILES_VAULT:-}" ] && builtin cd "$DOTFILES_VAULT" && return ;;
     esac
     builtin cd "$1" 2>/dev/null && return
     _cd_project "$1"; case $? in 0) return 0 ;; 2) return 1 ;; esac
@@ -52,7 +52,7 @@ cd() {
 
 # Complete local paths first, then short project names.
 _cd_project_complete() {
-  local cur=${COMP_WORDS[COMP_CWORD]} root="$DOTFILES_PROJECTS"
+  local cur=${COMP_WORDS[COMP_CWORD]} root="${DOTFILES_PROJECTS:-$HOME/projects}"
   local d name key bare want REPLY shortcut
   local -a exact=() prefix=() contains=()
   local -A seen=()
@@ -64,14 +64,14 @@ _cd_project_complete() {
     COMPREPLY+=("$d")
   done < <(compgen -d -- "$cur")
   [[ $cur == */* || $cur == '~'* || $cur == -* ]] && return 0
-  for shortcut in vault proje projeler; do
+  for shortcut in proje projeler; do
     if [[ $shortcut == "$cur" ]]; then COMPREPLY=("$shortcut"); return 0; fi
     [[ $shortcut == "$cur"* ]] && prefix+=("$shortcut")
   done
   _project_key "$cur"; want=$REPLY
   [[ -n $cur && -z $want ]] && return 0
   COMPREPLY=()
-  for d in ./*/ ./.[!.]*/ ./..?*/ "$root"/*/ "$root"//*/ "$DOTFILES_PROJECTS"/*/ "$DOTFILES_VAULT/"; do
+  for d in ./*/ ./.[!.]*/ ./..?*/ "$root"/*/; do
     [[ -d $d ]] || continue
     name=${d%/}; name=${name##*/}
     [[ $name == .* && $cur != .* ]] && continue
