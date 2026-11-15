@@ -1,0 +1,14 @@
+{
+  "KPackageStructure": "Plasma/LookAndFeel",
+  "KPlugin": {
+    "Id": "yakup.acik.desktop",
+    "Name": "Yakup Açık",
+    "Description": "Yakup'un açık/koyu teması",
+    "License": "GPLv2+",
+    "Authors": [
+      {
+        "Name": "Yakup"
+      }
+    ]
+  }
+}

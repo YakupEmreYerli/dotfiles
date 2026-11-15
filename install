@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Copy configs from this repo into your home folder. Existing files are kept as <name>.bak.
+# Usage: ./install            everything in manifest.tsv
+#        ./install konsole    only paths starting with "konsole"
+set -euo pipefail
+cd "$(dirname "$(readlink -f "$0")")"
+only=${1:-}
+
+while IFS=$'\t' read -r src dest _; do
+  [[ -z $src || $src == \#* ]] && continue
+  [[ -n $only && $src != "$only"* ]] && continue
+  [[ -e $src ]] || continue
+  if [[ $dest == /* ]]; then echo "needs root, copy by hand: $src -> $dest"; continue; fi
+  dest="$HOME/$dest"
+  mkdir -p "$(dirname "$dest")"
+  [[ -e $dest ]] && cp -r "$dest" "$dest.bak"
+  if [[ -d $src ]]; then cp -r "$src/." "$dest/"; else cp "$src" "$dest"; fi
+  echo "installed: $dest"
+done < manifest.tsv
+echo "Log out and back in to reload Plasma."

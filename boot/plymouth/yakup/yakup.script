@@ -1,0 +1,45 @@
+# Yakup's disk-password screen (design A): navy ASCII header and DISK ENCRYPTED baked into bg.png,
+# a steel password box with bullets and a steady caret (no blinking: every redraw here is CPU-only, before i915). Layout is drawn for 2880x1800 and scaled.
+W = Window.GetWidth();
+H = Window.GetHeight();
+k = W / 2880;
+
+bg_s = Sprite(Image("bg.png").Scale(W, H));
+bg_s.SetPosition(0, 0, -100);
+
+BOX_X = 1008 * k; BOX_Y = 1090 * k; BOX_H = 113 * k; MAXDOTS = 24;
+box_img = Image("box.png");
+box_s = Sprite(box_img.Scale(box_img.GetWidth() * k, box_img.GetHeight() * k));
+box_s.SetPosition(BOX_X, BOX_Y, 10);
+box_s.SetOpacity(0);
+
+dot_img = Image("dot.png").Scale(16 * k, 16 * k);
+for (i = 0; i < MAXDOTS; i++) {
+  dots[i] = Sprite(dot_img);
+  dots[i].SetPosition(BOX_X + (46 + i * 29) * k, BOX_Y + BOX_H / 2 - 8 * k, 12);
+  dots[i].SetOpacity(0);
+}
+caret_s = Sprite(Image("caret.png").Scale(26 * k, 60 * k));
+caret_s.SetOpacity(0);
+asking = 0;
+
+fun password_cb(prompt, bullets) {
+  asking = 1;
+  box_s.SetOpacity(1);
+  n = bullets;
+  if (n > MAXDOTS) n = MAXDOTS;
+  for (i = 0; i < MAXDOTS; i++) {
+    if (i < n) dots[i].SetOpacity(1); else dots[i].SetOpacity(0);
+  }
+  caret_s.SetPosition(BOX_X + (46 + n * 29 + 6) * k, BOX_Y + BOX_H / 2 - 30 * k, 12);
+  caret_s.SetOpacity(1);
+}
+Plymouth.SetDisplayPasswordFunction(password_cb);
+
+fun normal_cb() {
+  asking = 0;
+  box_s.SetOpacity(0);
+  caret_s.SetOpacity(0);
+  for (i = 0; i < MAXDOTS; i++) dots[i].SetOpacity(0);
+}
+Plymouth.SetDisplayNormalFunction(normal_cb);

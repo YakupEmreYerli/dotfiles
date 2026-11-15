@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Copy the live configs listed in manifest.tsv into this repo, then scan for secrets.
+# Usage: ./sync            copy and scan
+#        ./sync --commit   also commit and push when something changed (used by the daily timer)
+set -euo pipefail
+cd "$(dirname "$(readlink -f "$0")")"
+
+while IFS=$'\t' read -r dest src drop; do
+  [[ -z $dest || $dest == \#* ]] && continue
+  [[ $src == /* ]] || src="$HOME/$src"
+  [[ -e $src ]] || { echo "skip (missing): $src" >&2; continue; }
+  mkdir -p "$(dirname "$dest")"
+  if [[ -d $src && -n ${drop:-} ]]; then
+    rm -rf "$dest"; mkdir -p "$dest"
+    for f in "$src"/*; do grep -Ev "$drop" "$f" > "$dest/${f##*/}" || true; done
+  elif [[ -d $src ]]; then
+    rm -rf "$dest"; cp -rL "$src" "$dest"
+  elif [[ -n ${drop:-} ]]; then
+    grep -Ev "$drop" "$src" > "$dest" || true
+  else
+    cp -L "$src" "$dest"
+  fi
+done < manifest.tsv
+
+if command -v gitleaks >/dev/null; then
+  gitleaks dir . --no-banner --redact -c .gitleaks.toml >/dev/null || { echo "gitleaks found a possible secret, nothing committed" >&2; exit 1; }
+fi
+
+if [[ ${1:-} == --commit ]] && [[ -n $(git status --porcelain) ]]; then
+  git add -A
+  git commit -qm "chore: sync configs $(date +%F)"
+  git push -q
+fi

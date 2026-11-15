@@ -1,0 +1,314 @@
+#!/usr/bin/env python3
+"""One light/dark theme for the whole laptop: Plasma, Konsole, Claude Code, Brave (via Qt), wallpaper.
+
+Usage: tema            apply the current mode once
+       tema izle       apply now, then follow every theme change (systemd user service)
+       tema yaz        regenerate all files from the saved choice, then apply
+       tema degistir   switch between light and dark
+
+The choice (palettes, cursor, wallpapers) lives in ~/.config/tema/secim.json,
+written by the theme picker page.
+"""
+import configparser
+import json
+import os
+import re
+import subprocess
+import sys
+
+import dbus
+from dbus.mainloop.glib import DBusGMainLoop
+from gi.repository import GLib
+
+HOME = os.path.expanduser("~")
+CHOICE = f"{HOME}/.config/tema/secim.json"
+KONSOLE = f"{HOME}/.local/share/konsole"
+KDE_SCHEMES = f"{HOME}/.local/share/color-schemes"
+CLAUDE_THEME = f"{HOME}/.claude/themes/sistem.json"
+LNF_DIR = f"{HOME}/.local/share/plasma/look-and-feel"
+WALLPAPER_PKG = f"{HOME}/.local/share/wallpapers/YakupTema"
+SYS_WALLPAPERS = "/usr/share/wallpapers"
+KDEGLOBALS = f"{HOME}/.config/kdeglobals"
+# mode -> (terminal color scheme, Konsole profile, desktop color scheme file, look-and-feel id)
+NAMES = {"light": ("Yakup Açık", "Açık", "YakupAcik", "yakup.acik.desktop"),
+         "dark": ("Yakup Koyu", "Koyu", "YakupKoyu", "yakup.koyu.desktop")}
+LABEL = {"light": "Yakup Açık", "dark": "Yakup Koyu"}
+
+
+# ---------- colors ----------
+def rgb(h):
+    h = h.lstrip("#")
+    return [int(h[i:i + 2], 16) for i in (0, 2, 4)]
+
+
+def hexc(c):
+    return "#" + "".join(f"{v:02x}" for v in c)
+
+
+def mix(a, b, t):
+    a, b = rgb(a), rgb(b)
+    return hexc([round(x + (y - x) * t) for x, y in zip(a, b)])
+
+
+def csv(h):
+    return ",".join(map(str, rgb(h)))
+
+
+def load_choice():
+    with open(CHOICE) as f:
+        return json.load(f)
+
+
+# ---------- file generators ----------
+def write_terminal_scheme(name, p):
+    out = [f"[{k}]\nColor={csv(p['bg'])}\n" for k in ("Background", "BackgroundFaint", "BackgroundIntense")]
+    for i in range(8):
+        out.append(f"[Color{i}]\nColor={csv(p['normal'][i])}\n")
+        out.append(f"[Color{i}Faint]\nColor={csv(p['normal'][i])}\n")
+        out.append(f"[Color{i}Intense]\nColor={csv(p['bright'][i])}\n")
+    out += [f"[{k}]\nColor={csv(p['fg'])}\n" for k in ("Foreground", "ForegroundFaint", "ForegroundIntense")]
+    out.append(f"[General]\nBlur=false\nColorRandomization=false\nDescription={name}\nOpacity=1\nWallpaper=\n")
+    with open(f"{KONSOLE}/{name}.colorscheme", "w") as f:
+        f.write("\n".join(out))
+
+
+def set_cursor(profile, color):
+    path = f"{KONSOLE}/{profile}.profile"
+    text = open(path).read()
+    text = re.sub(r"^CustomCursorColor=.*$", f"CustomCursorColor={csv(color)}", text, flags=re.M)
+    open(path, "w").write(text)
+
+
+def write_desktop_scheme(fname, label, p):
+    """Plasma color scheme from the terminal palette.
+
+    Header (toolbars, title bars) uses the terminal background exactly, so Konsole looks like one piece;
+    Konsole follows the system scheme, which keeps its bar in sync live when the mode flips.
+    """
+    bg, fg, accent = p["bg"], p["fg"], p["normal"][4]
+    window, alt, dim = mix(bg, fg, .035), mix(bg, fg, .07), mix(bg, fg, .55)
+    sets = {"Window": (window, alt), "Header": (bg, window), "Header][Inactive": (bg, window),
+            "View": (bg, mix(bg, fg, .03)), "Button": (mix(bg, fg, .08), mix(bg, fg, .12)),
+            "Tooltip": (mix(bg, fg, .06), alt)}
+    # Complementary is drawn over a dark scrim (logout screen, lock screen, OSDs), so it stays dark-on-light-text
+    # in both modes, like Breeze; deriving it from a light palette made that text unreadable.
+    dark_bg, dark_fg = (bg, fg) if sum(rgb(bg)) < sum(rgb(fg)) else (fg, bg)
+    sets["Complementary"] = (dark_bg, mix(dark_bg, dark_fg, .035))
+    out = []
+    for group, (normal, alternate) in sets.items():
+        gfg, gdim = (dark_fg, mix(dark_bg, dark_fg, .55)) if group == "Complementary" else (fg, dim)
+        out.append(f"[Colors:{group}]\nBackgroundAlternate={csv(alternate)}\nBackgroundNormal={csv(normal)}\n"
+                   f"DecorationFocus={csv(accent)}\nDecorationHover={csv(accent)}\n"
+                   f"ForegroundActive={csv(accent)}\nForegroundInactive={csv(gdim)}\n"
+                   f"ForegroundLink={csv(accent)}\nForegroundNegative={csv(p['normal'][1])}\n"
+                   f"ForegroundNeutral={csv(p['normal'][3])}\nForegroundNormal={csv(gfg)}\n"
+                   f"ForegroundPositive={csv(p['normal'][2])}\nForegroundVisited={csv(p['normal'][5])}\n")
+    out.append(f"[Colors:Selection]\nBackgroundAlternate={csv(mix(accent, bg, .4))}\nBackgroundNormal={csv(accent)}\n"
+               f"DecorationFocus={csv(accent)}\nDecorationHover={csv(accent)}\nForegroundActive={csv(bg)}\n"
+               f"ForegroundInactive={csv(bg)}\nForegroundLink={csv(bg)}\nForegroundNegative={csv(bg)}\n"
+               f"ForegroundNeutral={csv(bg)}\nForegroundNormal={csv(bg)}\nForegroundPositive={csv(bg)}\n"
+               f"ForegroundVisited={csv(bg)}\n")
+    out.append(f"[General]\nColorScheme={fname}\nName={label}\nshadeSortColumn=true\n")
+    out.append("[KDE]\ncontrast=4\n")
+    out.append(f"[WM]\nactiveBackground={csv(bg)}\nactiveBlend={csv(fg)}\nactiveForeground={csv(fg)}\n"
+               f"inactiveBackground={csv(bg)}\ninactiveBlend={csv(dim)}\ninactiveForeground={csv(dim)}\n")
+    os.makedirs(KDE_SCHEMES, exist_ok=True)
+    with open(f"{KDE_SCHEMES}/{fname}.colors", "w") as f:
+        f.write("\n".join(out))
+
+
+def write_lnf(mode, fname, lnf):
+    """Minimal Breeze-based global theme, so Plasma's own light/dark switch picks our colors."""
+    base = "org.kde.breezedark.desktop" if mode == "dark" else "org.kde.breeze.desktop"
+    root = f"{LNF_DIR}/{lnf}"
+    os.makedirs(f"{root}/contents", exist_ok=True)
+    meta = {"KPackageStructure": "Plasma/LookAndFeel",
+            "KPlugin": {"Id": lnf, "Name": LABEL[mode], "Description": "Yakup'un açık/koyu teması",
+                        "License": "GPLv2+", "Authors": [{"Name": "Yakup"}]}}
+    with open(f"{root}/metadata.json", "w") as f:
+        json.dump(meta, f, ensure_ascii=False, indent=2)
+    icons = "breeze-dark" if mode == "dark" else "breeze"
+    with open(f"{root}/contents/defaults", "w") as f:
+        f.write(f"[kdeglobals][KDE]\nwidgetStyle=Breeze\n\n[kdeglobals][General]\nColorScheme={fname}\n\n"
+                f"[kdeglobals][Icons]\nTheme={icons}\n\n[plasmarc][Theme]\nname=default\n\n"
+                f"[kcminputrc][Mouse]\ncursorTheme=breeze_cursors\n\n"
+                f"[kwinrc][org.kde.kdecoration2]\nlibrary=org.kde.breeze\ntheme=Breeze\n\n"
+                f"[ksplashrc][KSplash]\nTheme=org.kde.breeze.desktop\n")
+    previews = f"{root}/contents/previews"
+    if not os.path.exists(previews):
+        os.symlink(f"/usr/share/plasma/look-and-feel/{base}/contents/previews", previews)
+
+
+def best_image(folder):
+    """Largest landscape image in a wallpaper package folder."""
+    best = None
+    for name in os.listdir(folder):
+        m = re.match(r"(\d+)x(\d+)\.", name)
+        if m and int(m[1]) > int(m[2]):
+            area = int(m[1]) * int(m[2])
+            if not best or area > best[0]:
+                best = (area, name)
+    return best[1] if best else None
+
+
+def write_wallpaper(choice):
+    """One wallpaper package with a light and a dark image; Plasma swaps them with the color scheme."""
+    wp = choice.get("wallpaper")
+    if not wp:
+        return False
+    for sub, pick in (("images", wp["light"]), ("images_dark", wp["dark"])):
+        name, dark = (pick[:-5], True) if pick.endswith("-dark") else (pick, False)
+        folder = f"{SYS_WALLPAPERS}/{name}/contents/{'images_dark' if dark else 'images'}"
+        image = best_image(folder)
+        target = f"{WALLPAPER_PKG}/contents/{sub}"
+        os.makedirs(target, exist_ok=True)
+        for old in os.listdir(target):
+            os.remove(f"{target}/{old}")
+        os.symlink(f"{folder}/{image}", f"{target}/{image}")
+    meta = {"KPlugin": {"Id": "YakupTema", "Name": "Yakup Tema", "Authors": [{"Name": "Yakup"}],
+                        "License": "CC-BY-SA-4.0"}}
+    with open(f"{WALLPAPER_PKG}/metadata.json", "w") as f:
+        json.dump(meta, f, ensure_ascii=False, indent=2)
+    return True
+
+
+def write_claude_theme(mode, p):
+    """Claude Code custom theme; Claude watches ~/.claude/themes and reloads running sessions."""
+    bg, fg, n = p["bg"], p["fg"], p["normal"]
+    tint = .16 if mode == "dark" else .13
+    theme = {
+        "name": "Sistem (açık/koyu)",
+        "base": mode,
+        "overrides": {
+            "text": fg,
+            "inverseText": bg,
+            "inactive": mix(fg, bg, .42),
+            "subtle": mix(fg, bg, .68),
+            "suggestion": n[4],
+            "permission": n[4],
+            "promptBorder": mix(fg, bg, .6),
+            "success": n[2],
+            "error": n[1],
+            "warning": n[3],
+            "remember": n[5],
+            "merged": n[5],
+            "planMode": n[6],
+            "bashBorder": n[5],
+            "diffAdded": mix(bg, n[2], tint),
+            "diffRemoved": mix(bg, n[1], tint),
+            "diffAddedDimmed": mix(bg, n[2], tint / 2),
+            "diffRemovedDimmed": mix(bg, n[1], tint / 2),
+            "diffAddedWord": mix(bg, n[2], tint * 2.2),
+            "diffRemovedWord": mix(bg, n[1], tint * 2.2),
+            "userMessageBackground": mix(bg, fg, .07),
+            "userMessageBackgroundHover": mix(bg, fg, .11),
+            "bashMessageBackgroundColor": mix(bg, n[5], .10),
+            "memoryBackgroundColor": mix(bg, n[4], .10),
+            "selectionBg": mix(bg, n[4], .30),
+        },
+    }
+    os.makedirs(os.path.dirname(CLAUDE_THEME), exist_ok=True)
+    tmp = CLAUDE_THEME + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(theme, f, ensure_ascii=False, indent=2)
+    os.replace(tmp, CLAUDE_THEME)
+
+
+def regenerate():
+    choice = load_choice()
+    for mode, (scheme, profile, fname, lnf) in NAMES.items():
+        write_terminal_scheme(scheme, choice[mode])
+        set_cursor(profile, choice[mode]["cursor"])
+        write_desktop_scheme(fname, LABEL[mode], choice[mode])
+        write_lnf(mode, fname, lnf)
+    subprocess.run(["kwriteconfig6", "--file", "kdeglobals", "--group", "KDE", "--key",
+                    "DefaultLightLookAndFeel", NAMES["light"][3]], check=False)
+    subprocess.run(["kwriteconfig6", "--file", "kdeglobals", "--group", "KDE", "--key",
+                    "DefaultDarkLookAndFeel", NAMES["dark"][3]], check=False)
+    # Konsole follows the system scheme: its bar then always matches and flips live.
+    kwrite("UiSettings", "ColorScheme", "")
+    if write_wallpaper(choice):
+        subprocess.run(["plasma-apply-wallpaperimage", WALLPAPER_PKG], check=False,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    # Re-apply the desktop scheme of the current mode so new colors show up right away.
+    fname = NAMES[current_mode()][2]
+    subprocess.run(["plasma-apply-colorscheme", "YakupKoyu" if fname == "YakupAcik" else "YakupAcik"],
+                   check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.run(["plasma-apply-colorscheme", fname], check=False,
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def toggle():
+    target = "light" if current_mode() == "dark" else "dark"
+    subprocess.run(["plasma-apply-lookandfeel", "-a", NAMES[target][3]], check=False,
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+# ---------- applying ----------
+def current_mode():
+    cfg = configparser.ConfigParser(interpolation=None, strict=False)
+    cfg.read(KDEGLOBALS)
+    r, g, b = (int(x) for x in cfg.get("Colors:Window", "BackgroundNormal",
+                                       fallback="239,240,241").split(",")[:3])
+    return "dark" if (0.299 * r + 0.587 * g + 0.114 * b) < 128 else "light"
+
+
+def kwrite(group, key, value):
+    subprocess.run(["kwriteconfig6", "--file", "konsolerc", "--group", group, "--key", key, value], check=False)
+
+
+def apply(bus):
+    mode = current_mode()
+    profile = NAMES[mode][1]
+    choice = load_choice()
+    kwrite("Desktop Entry", "DefaultProfile", f"{profile}.profile")
+    write_claude_theme(mode, choice[mode])
+    for name in bus.list_names():
+        if not str(name).startswith("org.kde.konsole"):
+            continue
+        # A running Konsole keeps its default profile in memory; new tabs ignore konsolerc until it restarts.
+        try:
+            root = bus.get_object(name, "/Windows")
+            xml = dbus.Interface(root, "org.freedesktop.DBus.Introspectable").Introspect()
+            for wid in [part.split('"')[1] for part in xml.split("<node name=")[1:]]:
+                window = bus.get_object(name, f"/Windows/{wid}")
+                dbus.Interface(window, "org.kde.konsole.Window").setDefaultProfile(profile)
+        except dbus.DBusException:
+            pass
+        try:
+            root = bus.get_object(name, "/Sessions")
+            xml = dbus.Interface(root, "org.freedesktop.DBus.Introspectable").Introspect()
+        except dbus.DBusException:
+            continue
+        for sid in [part.split('"')[1] for part in xml.split("<node name=")[1:]]:
+            try:
+                session = bus.get_object(name, f"/Sessions/{sid}")
+                dbus.Interface(session, "org.kde.konsole.Session").setProfile(profile)
+            except dbus.DBusException:
+                # Konsole applies the profile but still answers AccessDenied
+                # when its "security sensitive DBus API" setting is off.
+                pass
+
+
+def main():
+    DBusGMainLoop(set_as_default=True)
+    bus = dbus.SessionBus()
+    if sys.argv[1:] == ["degistir"]:
+        toggle()
+        return
+    if sys.argv[1:] == ["yaz"]:
+        regenerate()
+    apply(bus)
+    if sys.argv[1:] != ["izle"]:
+        return
+
+    def on_change(*_args, **_kw):
+        GLib.timeout_add(300, lambda: (apply(bus), False)[1])
+
+    bus.add_signal_receiver(on_change, signal_name="ConfigChanged",
+                            dbus_interface="org.kde.kconfig.notify", path="/kdeglobals")
+    GLib.MainLoop().run()
+
+
+if __name__ == "__main__":
+    main()

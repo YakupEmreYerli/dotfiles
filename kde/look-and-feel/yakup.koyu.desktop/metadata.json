@@ -1,0 +1,14 @@
+{
+  "KPackageStructure": "Plasma/LookAndFeel",
+  "KPlugin": {
+    "Id": "yakup.koyu.desktop",
+    "Name": "Yakup Koyu",
+    "Description": "Yakup'un açık/koyu teması",
+    "License": "GPLv2+",
+    "Authors": [
+      {
+        "Name": "Yakup"
+      }
+    ]
+  }
+}

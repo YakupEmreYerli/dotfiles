@@ -1,0 +1,16 @@
+# repo path	home path	lines to drop (extended regex, optional)
+kde/color-schemes	.local/share/color-schemes
+kde/look-and-feel	.local/share/plasma/look-and-feel
+kde/kwinrc	.config/kwinrc
+kde/kglobalshortcutsrc	.config/kglobalshortcutsrc
+kde/kcminputrc	.config/kcminputrc
+kde/kxkbrc	.config/kxkbrc
+kde/plasma-org.kde.plasma.desktop-appletsrc	.config/plasma-org.kde.plasma.desktop-appletsrc	^(positions|screenMapping|changedPositions)=
+konsole/profiles	.local/share/konsole	^Directory=
+konsole/konsolerc	.config/konsolerc
+tema/tema	.local/bin/tema
+tema/secim.json	.config/tema/secim.json
+tema/tema.service	.config/systemd/user/tema.service
+shell/bashrc.d/aliases.sh	.bashrc.d/yakup.sh	|\(cd [a-zçğıöşü]+, 
+git/gitconfig	.gitconfig	^\s*hooksPath
+boot/plymouth/yakup	/usr/share/plymouth/themes/yakup

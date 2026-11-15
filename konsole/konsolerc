@@ -1,0 +1,14 @@
+MenuBar=Disabled
+
+[Desktop Entry]
+DefaultProfile=Açık.profile
+
+[General]
+ConfigVersion=1
+
+[Notification Messages]
+ShowPasteHugeTextWarning=false
+ShowPasteUnprintableWarning=false
+
+[UiSettings]
+ColorScheme=

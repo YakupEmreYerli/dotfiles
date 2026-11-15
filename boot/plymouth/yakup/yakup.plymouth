@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=yakup
+Description=Navy ASCII YAKUP header, DISK ENCRYPTED, steel password box
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/yakup
+ScriptFile=/usr/share/plymouth/themes/yakup/yakup.script
